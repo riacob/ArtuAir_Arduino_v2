@@ -48,6 +48,7 @@ void setup()
 
 void loop()
 {
+  // Print data screen
   oledPrint(1);
   delay(800);
 }
