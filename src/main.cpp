@@ -21,6 +21,7 @@
 /* Internal libraries and headers */
 #include "hardware.h"
 #include "stringutils.h"
+#include "hdlc.h"
 
 /* Devices */
 // Bosch SensorTech BME680 ambient parameter sensor
@@ -38,10 +39,9 @@ unsigned long ms1 = 0;
 // Activity led
 unsigned long ms2 = 0;
 
-// Serial buffer
-char sbuf[64] = {0};
-
 void oledPrint(int state);
+void handleSerial(HardwareSerial *serial);
+void handleHDLC(HDLC::HDLCData *data);
 
 void setup()
 {
@@ -84,37 +84,7 @@ void loop()
   }
 
   /* Serial0 data (HDLC) */
-  if (Serial.available() > 4)
-  {
-    for(int i = 0; i < 64; i++){
-      sbuf[i] = 0;
-    }
-    uint8_t framelgt = 1;
-    // We have an HDLC frame
-    if (Serial.read() == '~')
-    {
-      // The flag was removed by the first call to Serial.read()
-      sbuf[0] = '~';
-      // Read frame until flag or until max serial buffer size is reached
-      do
-      {
-        if(Serial.available()){
-          sbuf[framelgt] = Serial.read();
-          framelgt++;
-        }        
-      } while ((sbuf[framelgt-1] != '~') && (framelgt < 64));
-      Serial.flush();
-      oled.clearDisplay();
-      oled.setCursor(0,0);
-      oled.setTextColor(WHITE);
-      oled.setTextSize(3);
-      oled.print(sbuf[0]);
-      oled.print(sbuf[1]);
-      oled.print(sbuf[2]);
-      oled.display();
-      delay(5000);
-    }
-  }
+  handleSerial(&Serial);
 }
 
 void oledPrint(int state)
@@ -165,6 +135,141 @@ void oledPrint(int state)
     break;
   }
 
+  default:
+  {
+    break;
+  }
+  }
+}
+
+void handleSerial(HardwareSerial *serial)
+{
+  if (serial->available() > 6)
+  {
+    // Serial buffer
+    uint8_t sbuf[64] = {0};
+    uint8_t framelgt = 1;
+    // We have an HDLC frame
+    if (serial->read() == '~')
+    {
+      // The flag was removed by the first call to Serial.read()
+      sbuf[0] = '~';
+      // Read frame until flag or until max serial buffer size is reached or until data is no longer available
+      do
+      {
+        if (serial->available())
+        {
+          sbuf[framelgt] = serial->read();
+          framelgt++;
+        }
+      } while ((sbuf[framelgt - 1] != '~') && (framelgt < 64));
+      HDLC hdlc(sbuf, 64);
+      // CRC16 is invalid
+      if (hdlc.unframe())
+      {
+        // Read incoming frame
+        HDLC::HDLCData *hdlcd = hdlc.getData();
+
+        // Transmit frame containing sequence number back to the sender
+        HDLC::HDLCData *seqn;
+        seqn->ADD = 0x00;
+        seqn->CTR = 0x00;
+        seqn->DAT = &(hdlcd->CTR);
+        seqn->DATlen = 1;
+        hdlc.setData(seqn);
+        int len = hdlc.frame();
+        for (int i = 0; i < len; i++)
+        {
+          serial->write(sbuf[i]);
+        }
+
+        // Do something with the data
+        handleHDLC(hdlcd);
+      }
+      // If the crc is not correct the serial buffer gets flushed, it then continue in the loop waiting
+      // for the other device to send the message again
+      else
+      {
+        serial->flush();
+        return;
+      }
+    }
+  }
+}
+
+void handleHDLC(HDLC::HDLCData *data)
+{
+
+  if (!data->ADD == SERIAL_ADD)
+  {
+    return;
+  }
+
+  enum Commands {
+    CMD_SEND_TEMPERATURE = 0,
+    CMD_SEND_HUMIDITY = 1,
+    CMD_SEND_PRESSURE = 2,
+    CMD_SEND_IAQ = 3,
+    CMD_SEND_DATE = 4,
+    CMD_SEND_TIME = 5,
+    CMD_RECV_DATE = 6,
+    CMD_RECV_TIME = 7,
+    CMD_RECV_ACT_DOW = 8,
+    CMD_RECV_ACT_TIME = 9,
+    CMD_RECV_PASSW_TRY = 10,
+  };
+
+  //get the command
+  //see allegated table
+  //subtract 48 to convert char to int
+  uint8_t cmd = data->DAT[0] - 48;
+  
+  switch (cmd)
+  {
+  case CMD_SEND_TEMPERATURE:
+  {
+    //send temperature
+  }
+  case CMD_SEND_HUMIDITY:
+  {
+    //send humidity
+  }
+  case CMD_SEND_PRESSURE:
+  {
+    //send pressure
+  }
+  case CMD_SEND_IAQ:
+  {
+    //send iaq
+  }
+  case CMD_SEND_DATE:
+  {
+    //send date
+  }
+  case CMD_SEND_TIME:
+  {
+    //send time
+  }
+  case CMD_RECV_DATE:
+  {
+    //receive date
+  }
+  case CMD_RECV_TIME:
+  {
+    //receive time
+  }
+  case CMD_RECV_ACT_DOW:
+  {
+    //receive active days of week
+  }
+  case CMD_RECV_ACT_TIME:
+  {
+    //receive active hours
+  }
+  case CMD_RECV_PASSW_TRY:
+  {
+    //receive passw try and return the result of the try
+  }
   default:
   {
     break;

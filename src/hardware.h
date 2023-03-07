@@ -17,6 +17,9 @@
 // Serial1
 #define BAUDRATE_SERIALBT 38400
 
+//Arduino Serial Address
+#define SERIAL_ADD 0x1E
+
 /* I2C device addresses */
 // RTC module
 #define I2C_DS3231_ADD 0x68
