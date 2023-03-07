@@ -40,4 +40,19 @@
 // Blue LED
 #define PIN_LED_BLUE 47
 
+//List of possible commands that the arduino may receive through serial
+  enum Commands {
+    CMD_SEND_TEMPERATURE = 0,
+    CMD_SEND_HUMIDITY = 1,
+    CMD_SEND_PRESSURE = 2,
+    CMD_SEND_IAQ = 3,
+    CMD_SEND_DATE = 4,
+    CMD_SEND_TIME = 5,
+    CMD_RECV_DATE = 6,
+    CMD_RECV_TIME = 7,
+    CMD_RECV_ACT_DOW = 8,
+    CMD_RECV_ACT_TIME = 9,
+    CMD_RECV_PASSW_TRY = 10,
+  };
+
 #endif

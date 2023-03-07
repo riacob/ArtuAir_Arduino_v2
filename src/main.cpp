@@ -40,7 +40,8 @@ unsigned long ms1 = 0;
 unsigned long ms2 = 0;
 
 void oledPrint(int state);
-void handleSerial(HardwareSerial *serial);
+void handleSerialReading(HardwareSerial *serial);
+void handleSerialWriting(HardwareSerial *serial, uint8_t *data, int datalen);
 void handleHDLC(HDLC::HDLCData *data);
 
 void setup()
@@ -84,9 +85,20 @@ void loop()
   }
 
   /* Serial0 data (HDLC) */
-  handleSerial(&Serial);
+  //if in the serial buffer there are more than 6 bytes (the minimum number of bytes requested for HDLC)
+  //it starts reading  
+  if (Serial.available() > 6)
+  {
+    handleSerialReading(&Serial);
+  }
+  
 }
 
+/**
+ * @brief Prints on the oled dispay a pregiven image base on the given state code
+ * 
+ * @param state The number of the state that will be printed
+ */
 void oledPrint(int state)
 {
   switch (state)
@@ -141,11 +153,13 @@ void oledPrint(int state)
   }
   }
 }
-
-void handleSerial(HardwareSerial *serial)
+/**
+ * @brief Handle the serial reading and the eventually command execution and response 
+ * 
+ * @param serial The serial device to read the data from
+ */
+void handleSerialReading(HardwareSerial *serial)
 {
-  if (serial->available() > 6)
-  {
     // Serial buffer
     uint8_t sbuf[64] = {0};
     uint8_t framelgt = 1;
@@ -178,10 +192,7 @@ void handleSerial(HardwareSerial *serial)
         seqn->DATlen = 1;
         hdlc.setData(seqn);
         int len = hdlc.frame();
-        for (int i = 0; i < len; i++)
-        {
-          serial->write(sbuf[i]);
-        }
+        handleSerialWriting(serial, sbuf, len);
 
         // Do something with the data
         handleHDLC(hdlcd);
@@ -195,8 +206,28 @@ void handleSerial(HardwareSerial *serial)
       }
     }
   }
+
+
+/**
+* @brief Writes on the given serial bus the given data array
+* 
+* @param serial The serial bus to write on
+* @param data The data to be write (uint8_t) array
+* @param datalen The lenght of the data array
+*/
+void handleSerialWriting(HardwareSerial *serial, uint8_t *data, int datalen){
+  for (int i = 0; i < datalen; i++)
+    {
+      serial->write(data[i]);
+    }
 }
 
+
+/**
+ * @brief Select and execute the request arrived through the serial line
+ * 
+ * @param data The HDLC data arrived through serial
+ */
 void handleHDLC(HDLC::HDLCData *data)
 {
 
@@ -205,22 +236,7 @@ void handleHDLC(HDLC::HDLCData *data)
     return;
   }
 
-  enum Commands {
-    CMD_SEND_TEMPERATURE = 0,
-    CMD_SEND_HUMIDITY = 1,
-    CMD_SEND_PRESSURE = 2,
-    CMD_SEND_IAQ = 3,
-    CMD_SEND_DATE = 4,
-    CMD_SEND_TIME = 5,
-    CMD_RECV_DATE = 6,
-    CMD_RECV_TIME = 7,
-    CMD_RECV_ACT_DOW = 8,
-    CMD_RECV_ACT_TIME = 9,
-    CMD_RECV_PASSW_TRY = 10,
-  };
-
-  //get the command
-  //see allegated table
+  //get the command that will be executed
   //subtract 48 to convert char to int
   uint8_t cmd = data->DAT[0] - 48;
   
