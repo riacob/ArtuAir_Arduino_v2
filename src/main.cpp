@@ -30,8 +30,18 @@ Adafruit_SSD1306 oled(128, 64, &Wire, -1);
 // High-precision external RTC module
 RTC_DS3231 rtc;
 
+/* Timers */
+// Display refresh
+unsigned long ms0 = 0;
+// Perform measurement
+unsigned long ms1 = 0;
+// Activity led
+unsigned long ms2 = 0;
+
+// Serial buffer
+char sbuf[64] = {0};
+
 void oledPrint(int state);
-void handleHDLCFrame(char *frame, int framelgt);
 
 void setup()
 {
@@ -43,14 +53,68 @@ void setup()
   rtc.begin(&Wire);
   // Print welcome screen
   oledPrint(0);
+
+  // Get the first data from the sensor
+  bme680.performReading();
+
   delay(3000);
 }
 
 void loop()
 {
-  // Print data screen
-  oledPrint(1);
-  delay(800);
+  /* Update display every 100ms */
+  if (millis() - ms0 >= 100)
+  {
+    ms0 = millis();
+    oledPrint(1);
+  }
+
+  /* Update data sensor every 60s */
+  if (millis() - ms1 >= 60000)
+  {
+    ms1 = millis();
+    bme680.performReading();
+  }
+
+  /* Blink led with a frequency of 1Hz */
+  if (millis() - ms2 >= 1000)
+  {
+    ms2 = millis();
+    digitalWrite(PIN_LED_RED, !digitalRead(PIN_LED_RED));
+  }
+
+  /* Serial0 data (HDLC) */
+  if (Serial.available() > 4)
+  {
+    for(int i = 0; i < 64; i++){
+      sbuf[i] = 0;
+    }
+    uint8_t framelgt = 1;
+    // We have an HDLC frame
+    if (Serial.read() == '~')
+    {
+      // The flag was removed by the first call to Serial.read()
+      sbuf[0] = '~';
+      // Read frame until flag or until max serial buffer size is reached
+      do
+      {
+        if(Serial.available()){
+          sbuf[framelgt] = Serial.read();
+          framelgt++;
+        }        
+      } while ((sbuf[framelgt-1] != '~') && (framelgt < 64));
+      Serial.flush();
+      oled.clearDisplay();
+      oled.setCursor(0,0);
+      oled.setTextColor(WHITE);
+      oled.setTextSize(3);
+      oled.print(sbuf[0]);
+      oled.print(sbuf[1]);
+      oled.print(sbuf[2]);
+      oled.display();
+      delay(5000);
+    }
+  }
 }
 
 void oledPrint(int state)
@@ -75,7 +139,6 @@ void oledPrint(int state)
   {
     char strbuf[16];
     DateTime dt = rtc.now();
-    bme680.performReading();
     oled.clearDisplay();
     oled.setCursor(0, 0);
     oled.setTextColor(WHITE);
