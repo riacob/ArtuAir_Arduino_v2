@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "crc16.h"
+#include <Arduino.h>
 #define STDIODBG_
 
 class HDLC

@@ -42,7 +42,7 @@ unsigned long ms2 = 0;
 void oledPrint(int state);
 void handleSerialReading(HardwareSerial *serial);
 void handleSerialWriting(HardwareSerial *serial, uint8_t *data, int datalen);
-void handleHDLC(HDLC::HDLCData *data);
+void handleReceiveHDLC(HDLC::HDLCData *data);
 
 void setup()
 {
@@ -81,22 +81,21 @@ void loop()
   if (millis() - ms2 >= 1000)
   {
     ms2 = millis();
-    digitalWrite(PIN_LED_RED, !digitalRead(PIN_LED_RED));
+    // digitalWrite(PIN_LED_RED, !digitalRead(PIN_LED_RED));
   }
 
   /* Serial0 data (HDLC) */
-  //if in the serial buffer there are more than 6 bytes (the minimum number of bytes requested for HDLC)
-  //it starts reading  
+  // if in the serial buffer there are more than 6 bytes (the minimum number of bytes requested for HDLC)
+  // it starts reading
   if (Serial.available() > 6)
   {
     handleSerialReading(&Serial);
   }
-  
 }
 
 /**
  * @brief Prints on the oled dispay a pregiven image base on the given state code
- * 
+ *
  * @param state The number of the state that will be printed
  */
 void oledPrint(int state)
@@ -153,138 +152,119 @@ void oledPrint(int state)
   }
   }
 }
+
 /**
- * @brief Handle the serial reading and the eventually command execution and response 
- * 
+ * @brief Handle the serial reading and the eventually command execution and response
+ *
  * @param serial The serial device to read the data from
  */
 void handleSerialReading(HardwareSerial *serial)
 {
-    // Serial buffer
-    uint8_t sbuf[64] = {0};
-    uint8_t framelgt = 1;
-    // We have an HDLC frame
-    if (serial->read() == '~')
+  // Serial buffer
+  uint8_t sbuf[64] = {0};
+  // Length of the HDLC frame
+  uint8_t framelgt = 1;
+  // HDLC object
+  HDLC hdlc(sbuf, 64);
+  // We have an HDLC frame
+  if (serial->read() == '~')
+  {
+    // The flag was removed by the first call to Serial.read()
+    sbuf[0] = '~';
+    // Read frame until flag or until max serial buffer size is reached or until data is no longer available
+    do
     {
-      // The flag was removed by the first call to Serial.read()
-      sbuf[0] = '~';
-      // Read frame until flag or until max serial buffer size is reached or until data is no longer available
-      do
-      {
-        if (serial->available())
-        {
-          sbuf[framelgt] = serial->read();
-          framelgt++;
-        }
-      } while ((sbuf[framelgt - 1] != '~') && (framelgt < 64));
-      HDLC hdlc(sbuf, 64);
-      // CRC16 is invalid
-      if (hdlc.unframe())
-      {
-        // Read incoming frame
-        HDLC::HDLCData *hdlcd = hdlc.getData();
+      sbuf[framelgt] = serial->read();
+      framelgt++;
+    } while ((sbuf[framelgt - 1] != '~') && (framelgt < 64) && (serial->available()));
+    // CRC16 is valid
+    if (hdlc.unframe())
+    {
+      // Read incoming frame
+      HDLC::HDLCData *hdlcd = hdlc.getData();
 
-        // Transmit frame containing sequence number back to the sender
-        HDLC::HDLCData *seqn;
-        seqn->ADD = 0x00;
-        seqn->CTR = 0x00;
-        seqn->DAT = &(hdlcd->CTR);
-        seqn->DATlen = 1;
-        hdlc.setData(seqn);
-        int len = hdlc.frame();
-        handleSerialWriting(serial, sbuf, len);
+      // Transmit frame containing sequence number back to the sender
+      HDLC::HDLCData *seqn;
+      seqn->ADD = 0x00;
+      seqn->CTR = 0x00;
+      seqn->DAT = &(hdlcd->CTR);
+      seqn->DATlen = 1;
+      hdlc.setData(seqn);
+      int len = hdlc.frame();
+      handleSerialWriting(serial, sbuf, len);
 
-        // Do something with the data
-        handleHDLC(hdlcd);
-      }
-      // If the crc is not correct the serial buffer gets flushed, it then continue in the loop waiting
-      // for the other device to send the message again
-      else
-      {
-        serial->flush();
-        return;
-      }
+      // Do something with the data
+      handleReceiveHDLC(hdlcd);
+    }
+    // If the crc is not correct the serial buffer gets flushed, it then continue in the loop waiting
+    // for the other device to send the message again
+    else
+    {
+      serial->flush();
+      return;
     }
   }
-
-
-/**
-* @brief Writes on the given serial bus the given data array
-* 
-* @param serial The serial bus to write on
-* @param data The data to be write (uint8_t) array
-* @param datalen The lenght of the data array
-*/
-void handleSerialWriting(HardwareSerial *serial, uint8_t *data, int datalen){
-  for (int i = 0; i < datalen; i++)
-    {
-      serial->write(data[i]);
-    }
 }
 
+/**
+ * @brief Writes on the given serial bus the given data array
+ *
+ * @param serial The serial bus to write on
+ * @param data The data to be write (uint8_t) array
+ * @param datalen The lenght of the data array
+ */
+void handleSerialWriting(HardwareSerial *serial, uint8_t *data, int datalen)
+{
+  for (int i = 0; i < datalen; i++)
+  {
+    serial->write(data[i]);
+  }
+}
 
 /**
  * @brief Select and execute the request arrived through the serial line
- * 
+ *
  * @param data The HDLC data arrived through serial
  */
-void handleHDLC(HDLC::HDLCData *data)
+void handleReceiveHDLC(HDLC::HDLCData *data)
 {
 
-  if (!data->ADD == SERIAL_ADD)
+  if (!(data->ADD == SERIAL_ADD))
   {
     return;
   }
 
-  //get the command that will be executed
-  //subtract 48 to convert char to int
-  uint8_t cmd = data->DAT[0] - 48;
-  
+  // get the command that will be executed
+  uint8_t cmd = data->DAT[0];
+
   switch (cmd)
   {
-  case CMD_SEND_TEMPERATURE:
-  {
-    //send temperature
-  }
-  case CMD_SEND_HUMIDITY:
-  {
-    //send humidity
-  }
-  case CMD_SEND_PRESSURE:
-  {
-    //send pressure
-  }
-  case CMD_SEND_IAQ:
-  {
-    //send iaq
-  }
-  case CMD_SEND_DATE:
-  {
-    //send date
-  }
-  case CMD_SEND_TIME:
-  {
-    //send time
-  }
   case CMD_RECV_DATE:
   {
-    //receive date
+    oled.clearDisplay();
+    oled.setTextColor(WHITE);
+    oled.setTextSize(2);
+    oled.setCursor(0, 0);
+    oled.print(data->DATlen);
+    oled.display();
+    delay(5000);
+    break;
   }
   case CMD_RECV_TIME:
   {
-    //receive time
+    break;
   }
   case CMD_RECV_ACT_DOW:
   {
-    //receive active days of week
+    break;
   }
   case CMD_RECV_ACT_TIME:
   {
-    //receive active hours
+    break;
   }
   case CMD_RECV_PASSW_TRY:
   {
-    //receive passw try and return the result of the try
+    break;
   }
   default:
   {

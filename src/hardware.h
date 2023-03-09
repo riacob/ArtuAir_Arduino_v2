@@ -40,19 +40,30 @@
 // Blue LED
 #define PIN_LED_BLUE 47
 
-//List of possible commands that the arduino may receive through serial
+// List of possible commands that the arduino may receive through serial
   enum Commands {
+    // Send temperature
     CMD_SEND_TEMPERATURE = 0,
+    // Send humidity
     CMD_SEND_HUMIDITY = 1,
+    // Send pressure
     CMD_SEND_PRESSURE = 2,
+    // Send indoor air quality
     CMD_SEND_IAQ = 3,
+    // Send RTC date
     CMD_SEND_DATE = 4,
+    // Send RTC time
     CMD_SEND_TIME = 5,
+    // Receive RTC date
     CMD_RECV_DATE = 6,
+    // Receive RTC time
     CMD_RECV_TIME = 7,
+    // Receive active days of week
     CMD_RECV_ACT_DOW = 8,
+    // Receive active time slot
     CMD_RECV_ACT_TIME = 9,
-    CMD_RECV_PASSW_TRY = 10,
+    // Receive password attempt
+    CMD_RECV_PASSW_TRY = 10
   };
 
 #endif

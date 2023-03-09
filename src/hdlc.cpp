@@ -60,11 +60,26 @@ bool HDLC::unframe()
     int i = 0, j = 0, m = 0;
     int framelgt = 0;
     bool validcrc = false;
+    bool flgfound = false;
     // Get frame length
+    Serial.println("mela");
     do
     {
         framelgt++;
-    } while ((framelgt > 0 && workBuf[framelgt] != 0x7E) || framelgt == workBufSize);
+        if (workBuf[framelgt] == 0x7E) {
+            framelgt++;
+            flgfound = true;
+            break;
+        }
+    } while ((workBuf[framelgt] != 0x7E) || (framelgt == workBufSize));
+    Serial.println("pera");
+    // If no flag was found return as if crc was invalid
+    if (!flgfound) {
+        return false;
+    }
+    for(int i = 0; i < framelgt; i++) {
+        Serial.print(workBuf[i]);
+    }
     // Unstuffing
     for (i = 1; i < framelgt; i++)
     {
