@@ -7,6 +7,11 @@ HDLC::HDLC(uint8_t *workBuffer, int workBufferSize)
 {
     workBuf = workBuffer;
     workBufSize = workBufferSize;
+    data = new HDLCData;
+}
+
+HDLC::~HDLC(){
+    delete data;
 }
 
 int HDLC::frame()
@@ -24,7 +29,7 @@ int HDLC::frame()
         workBuf[i] = data->DAT[i - 3];
     }
     // CRC16
-    uint16_t crc = CRC16::ccitt(workBuf + 1, 2 + data->DATlen);
+    uint16_t crc = crc16_ccitt(workBuf + 1, 2 + data->DATlen);
     workBuf[i] = crc >> 8;
     workBuf[i + 1] = crc & 0x00FF;
     // Stuffing
@@ -92,9 +97,10 @@ bool HDLC::unframe()
         }
     }
     // CRC16 comparison
-    Serial.println(framelgt);
-    Serial.println(newlen);
-    uint16_t crc = CRC16::ccitt(workBuf + 1, newlen - 4);
+    /*Serial.println(framelgt);
+    Serial.println(newlen);*/
+    delayMicroseconds(500);
+    uint16_t crc = crc16_ccitt(workBuf + 1, newlen - 4);
     Serial.println();
     for(int x = 0; x < newlen; x++) {
         Serial.print(workBuf[x]);
@@ -105,31 +111,27 @@ bool HDLC::unframe()
     {
         validcrc = true;
         Serial.println(":)");
-        Serial.print("crc1:");
-        Serial.println(workBuf[newlen - 3]);
-        Serial.print("crc2:");
-        Serial.println(workBuf[newlen - 2]);
     }
     else
     {
         Serial.println(":(");
-        Serial.print("crc1:");
-        Serial.println(workBuf[newlen - 3]);
-        Serial.print("crc2:");
-        Serial.println(workBuf[newlen - 2]);
         return false;
     }
+    //Serial.println("pera");
+
     // Address
     data->ADD = workBuf[1];
     // Control
     data->CTR = workBuf[2];
     // Data
-    for (m = 3; m < framelgt - 6; m++)
+    //Serial.println("mela");
+    for (m = 3; m < newlen - 6; m++)
     {
         data->DAT[m - 3] = workBuf[m];
     }
+    //Serial.println("banana");
     // Data length
-    data->DATlen = framelgt - 6;
+    data->DATlen = newlen - 6;
 #ifdef STDIODBG
     for (int l = 0; l < framelgt; l++)
     {
@@ -165,4 +167,32 @@ uint8_t *HDLC::getWorkBuffer()
 int HDLC::getWorkBufferSize()
 {
     return workBufSize;
+}
+
+uint16_t HDLC::crc16_ccitt(uint8_t *arr, uint32_t arrlgt)
+{
+    /*Serial.println("crcdata");
+    for (int m = 0; m < arrlgt; m++) {
+        Serial.print(arr[m]);
+        Serial.print(",");
+    }
+    Serial.println();*/
+    uint16_t temp;
+    bool odd;
+    uint16_t crc;
+    uint32_t i, j;
+    crc = 0xFFFF;
+    for (i = 0; i < arrlgt; i++)
+    {
+        temp = arr[i] & 0x00FF;
+        crc ^= temp;
+        for (j = 0; j < 8; j++)
+        {
+            odd = crc & 0x0001 ? true : false;
+            crc = crc >> 1;
+            if (odd)
+                crc ^= 0xA001;
+        }
+    }
+    return crc;
 }

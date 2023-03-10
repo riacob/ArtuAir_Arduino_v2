@@ -32,7 +32,7 @@
 
 /* GPIOs */
 // Green LED
-#define PIN_LED_GREEN 52
+#define PIN_LED_GREEN 53
 // Yellow LED
 #define PIN_LED_YELLOW 51
 // Red LED

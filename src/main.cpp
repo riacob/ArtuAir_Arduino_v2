@@ -39,6 +39,12 @@ unsigned long ms1 = 0;
 // Activity led
 unsigned long ms2 = 0;
 
+// Serial buffer
+uint8_t sbuf[64];
+
+// HDLC object
+HDLC hdlc(sbuf, 64);
+
 void oledPrint(int state);
 void handleSerialReading(HardwareSerial *serial);
 void handleSerialWriting(HardwareSerial *serial, uint8_t *data, int datalen);
@@ -54,6 +60,12 @@ void setup()
   rtc.begin(&Wire);
   // Print welcome screen
   oledPrint(0);
+
+
+  pinMode(PIN_LED_BLUE, OUTPUT);
+  pinMode(PIN_LED_RED, OUTPUT);
+  pinMode(PIN_LED_GREEN, OUTPUT);
+  pinMode(PIN_LED_YELLOW, OUTPUT);
 
   // Get the first data from the sensor
   bme680.performReading();
@@ -160,15 +172,20 @@ void oledPrint(int state)
  */
 void handleSerialReading(HardwareSerial *serial)
 {
-  // Serial buffer
-  uint8_t sbuf[64] = {0};
-  // Length of the HDLC frame
-  uint8_t framelgt = 1;
-  // HDLC object
-  HDLC hdlc(sbuf, 64);
   // We have an HDLC frame
   if (serial->read() == '~')
   {
+    Serial.print("A");
+    
+    for(int i = 0; i < 64; i++){
+      sbuf[i] = 0;
+    }
+
+    Serial.print("B");
+    // Length of the HDLC frame
+    uint8_t framelgt = 1;    
+
+    Serial.print("C");
     // The flag was removed by the first call to Serial.read()
     sbuf[0] = '~';
     // Read frame until flag or until max serial buffer size is reached or until data is no longer available
@@ -177,34 +194,42 @@ void handleSerialReading(HardwareSerial *serial)
       sbuf[framelgt] = serial->read();
       framelgt++;
     } while ((sbuf[framelgt - 1] != '~') && (framelgt < 64) && (serial->available()));
+    serial->flush();
+    Serial.print("D");
     // CRC16 is valid
     if (hdlc.unframe())
-    {
+    {    
+      Serial.print("E");
+
       // Read incoming frame
       HDLC::HDLCData *hdlcd = hdlc.getData();
 
       // Transmit frame containing sequence number back to the sender
-      HDLC::HDLCData *seqn;
-      seqn->ADD = 0x00;
-      seqn->CTR = 0x00;
-      seqn->DAT = &(hdlcd->CTR);
-      seqn->DATlen = 1;
-      hdlc.setData(seqn);
+      HDLC::HDLCData seqn;
+
+      seqn.ADD = 0x00;
+      seqn.CTR = 0x00;
+      seqn.DAT = &(hdlcd->CTR);
+      seqn.DATlen = 1;
+      hdlc.setData(&seqn);
       int len = hdlc.frame();
-      handleSerialWriting(serial, sbuf, len);
+      //handleSerialWriting(serial, sbuf, len);
 
       // Do something with the data
       handleReceiveHDLC(hdlcd);
-
-      
     }
     // If the crc is not correct the serial buffer gets flushed, it then continue in the loop waiting
     // for the other device to send the message again
     else
     {
-      //serial->println("invalid crc");
+      Serial.print("crc no buono");
+      // serial->println("invalid crc");
       serial->flush();
     }
+  }
+  else
+  {
+    serial->flush();
   }
 }
 
