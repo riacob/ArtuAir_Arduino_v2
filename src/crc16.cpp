@@ -1,11 +1,17 @@
 #include "crc16.h"
 
-uint16_t CRC16::ccitt(uint8_t *arr, int arrlgt)
+uint16_t CRC16::ccitt(uint8_t *arr, uint32_t arrlgt)
 {
+    Serial.println("crcdata");
+    for (int m = 0; m < arrlgt; m++) {
+        Serial.print(arr[m]);
+        Serial.print(",");
+    }
+    Serial.println();
     uint16_t temp;
     bool odd;
     uint16_t crc;
-    int i, j;
+    uint32_t i, j;
     crc = 0xFFFF;
     for (i = 0; i < arrlgt; i++)
     {

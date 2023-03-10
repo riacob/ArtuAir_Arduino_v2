@@ -52,7 +52,7 @@ int HDLC::frame()
               << k << std::endl;
 #endif
     // Return lenght of frame
-    return i+k+3;
+    return i + k + 3;
 }
 
 bool HDLC::unframe()
@@ -62,26 +62,24 @@ bool HDLC::unframe()
     bool validcrc = false;
     bool flgfound = false;
     // Get frame length
-    Serial.println("mela");
     do
     {
         framelgt++;
-        if (workBuf[framelgt] == 0x7E) {
+        if (workBuf[framelgt] == 0x7E)
+        {
             framelgt++;
             flgfound = true;
             break;
         }
-    } while ((workBuf[framelgt] != 0x7E) || (framelgt == workBufSize));
-    Serial.println("pera");
+    } while (/*(workBuf[framelgt] != 0x7E) || */ (framelgt <= workBufSize));
     // If no flag was found return as if crc was invalid
-    if (!flgfound) {
+    if (!flgfound)
+    {
         return false;
     }
-    for(int i = 0; i < framelgt; i++) {
-        Serial.print(workBuf[i]);
-    }
     // Unstuffing
-    for (i = 1; i < framelgt; i++)
+    int newlen = framelgt;
+    for (i = 1; i < framelgt - 1; i++)
     {
         if (workBuf[i] == 0x7D)
         {
@@ -90,13 +88,36 @@ bool HDLC::unframe()
                 workBuf[j] = workBuf[j + 1];
             }
             workBuf[i] ^= 0x20;
+            newlen--;
         }
     }
     // CRC16 comparison
-    uint16_t crc = CRC16::ccitt(workBuf + 1, framelgt - 4);
-    if ((workBuf[framelgt - 3] == (crc >> 8)) && (workBuf[framelgt - 2] == (crc & 0x00FF)))
+    Serial.println(framelgt);
+    Serial.println(newlen);
+    uint16_t crc = CRC16::ccitt(workBuf + 1, newlen - 4);
+    Serial.println();
+    for(int x = 0; x < newlen; x++) {
+        Serial.print(workBuf[x]);
+        Serial.print(",");
+    }
+    Serial.println();
+    if ((workBuf[newlen - 2] == (crc >> 8)) && (workBuf[newlen - 3] == (crc & 0x00FF)))
     {
         validcrc = true;
+        Serial.println(":)");
+        Serial.print("crc1:");
+        Serial.println(workBuf[newlen - 3]);
+        Serial.print("crc2:");
+        Serial.println(workBuf[newlen - 2]);
+    }
+    else
+    {
+        Serial.println(":(");
+        Serial.print("crc1:");
+        Serial.println(workBuf[newlen - 3]);
+        Serial.print("crc2:");
+        Serial.println(workBuf[newlen - 2]);
+        return false;
     }
     // Address
     data->ADD = workBuf[1];

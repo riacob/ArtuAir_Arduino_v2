@@ -195,13 +195,15 @@ void handleSerialReading(HardwareSerial *serial)
 
       // Do something with the data
       handleReceiveHDLC(hdlcd);
+
+      
     }
     // If the crc is not correct the serial buffer gets flushed, it then continue in the loop waiting
     // for the other device to send the message again
     else
     {
+      //serial->println("invalid crc");
       serial->flush();
-      return;
     }
   }
 }
