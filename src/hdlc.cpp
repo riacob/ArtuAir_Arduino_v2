@@ -112,13 +112,9 @@ bool HDLC::unframe()
     for (m = 3; m < newlen - 3; m++)
     {
         data->DAT[m - 3] = workBuf[m];
-        Serial.print(workBuf[m]);
-        Serial.println(data->DAT[m-3]);
     }
     // Data length
     data->DATlen = newlen - 6;
-    Serial.print(workBuf[3]);
-    Serial.println(data->DAT[0]);
     uint16_t crc = crc16_ccitt(workBuf + 1, newlen - 4);
     if ((workBuf[newlen - 2] == (crc >> 8)) && (workBuf[newlen - 3] == (crc & 0x00FF)))
     {

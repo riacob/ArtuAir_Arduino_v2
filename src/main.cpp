@@ -137,7 +137,7 @@ void oledPrint(int state)
     oled.setCursor(0, 0);
     oled.setTextColor(WHITE);
     oled.setTextSize(1);
-    StringUtils::dateToString(dt.day(), dt.month(), dt.year() - 100, strbuf);
+    StringUtils::dateToString(dt.day(), dt.month(), dt.year(), strbuf);
     oled.print(strbuf);
     oled.print(" ");
     StringUtils::timeToString(dt.hour(), dt.minute(), dt.second(), strbuf);
@@ -271,9 +271,13 @@ void handleReceiveHDLC(HDLC::HDLCData *data)
     oled.setTextColor(WHITE);
     oled.setTextSize(2);
     oled.setCursor(0, 0);
-    oled.print(data->DATlen);
+    //oled.print(data->DATlen);
     oled.display();
     delay(5000);
+    int year = (data->DAT[1] << 8) | (data->DAT[2]);
+    Serial.println(year);
+    DateTime currentTime(year, data->DAT[3], data->DAT[4], data->DAT[5], data->DAT[6], data->DAT[7]);
+    rtc.adjust(currentTime);
     break;
   }
   case CMD_RECV_TIME:
