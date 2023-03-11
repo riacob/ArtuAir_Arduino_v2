@@ -85,6 +85,7 @@ bool HDLC::unframe()
     {
         return false;
     }
+
     // Unstuffing
     int newlen = framelgt;
     for (i = 1; i < framelgt - 1; i++)
@@ -99,8 +100,25 @@ bool HDLC::unframe()
             newlen--;
         }
     }
+
     // CRC16 comparison
     delayMicroseconds(500);
+    
+    // Address
+    data->ADD = workBuf[1];
+    // Control
+    data->CTR = workBuf[2];
+    // Data
+    for (m = 3; m < newlen - 3; m++)
+    {
+        data->DAT[m - 3] = workBuf[m];
+        Serial.print(workBuf[m]);
+        Serial.println(data->DAT[m-3]);
+    }
+    // Data length
+    data->DATlen = newlen - 6;
+    Serial.print(workBuf[3]);
+    Serial.println(data->DAT[0]);
     uint16_t crc = crc16_ccitt(workBuf + 1, newlen - 4);
     if ((workBuf[newlen - 2] == (crc >> 8)) && (workBuf[newlen - 3] == (crc & 0x00FF)))
     {
@@ -113,17 +131,6 @@ bool HDLC::unframe()
         return false;
     }
 
-    // Address
-    data->ADD = workBuf[1];
-    // Control
-    data->CTR = workBuf[2];
-    // Data
-    for (m = 3; m < newlen - 6; m++)
-    {
-        data->DAT[m - 3] = workBuf[m];
-    }
-    // Data length
-    data->DATlen = newlen - 6;
 #ifdef STDIODBG
     for (int l = 0; l < framelgt; l++)
     {

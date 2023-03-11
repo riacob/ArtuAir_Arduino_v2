@@ -207,16 +207,16 @@ void handleSerialReading(HardwareSerial *serial)
       // Transmit frame containing sequence number back to the sender
       HDLC::HDLCData seqn;
 
+      // Do something with the data
+      handleReceiveHDLC(hdlc.getData());
+
       seqn.ADD = 0x00;
       seqn.CTR = 0x00;
-      seqn.DAT = &(hdlcd->CTR);
-      seqn.DATlen = 1;
+      seqn.DAT[0] = hdlcd->DAT[0];
+      seqn.DATlen = 1;      
       hdlc.setData(&seqn);
       int len = hdlc.frame();
-      // handleSerialWriting(serial, sbuf, len);
-
-      // Do something with the data
-      handleReceiveHDLC(hdlcd);
+      //handleSerialWriting(serial, sbuf, len);
     }
     // If the crc is not correct the serial buffer gets flushed, it then continue in the loop waiting
     // for the other device to send the message again
@@ -255,10 +255,10 @@ void handleSerialWriting(HardwareSerial *serial, uint8_t *data, int datalen)
 void handleReceiveHDLC(HDLC::HDLCData *data)
 {
 
-  if (!(data->ADD == SERIAL_ADD))
+  /*if (!(data->ADD == SERIAL_ADD))
   {
     return;
-  }
+  }*/
 
   // get the command that will be executed
   uint8_t cmd = data->DAT[0];

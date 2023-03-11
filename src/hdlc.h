@@ -12,7 +12,7 @@ public:
     {
         uint8_t ADD;
         uint8_t CTR;
-        uint8_t *DAT;
+        uint8_t DAT[64];
         int DATlen;
     } HDLCData;
 
