@@ -70,12 +70,15 @@ bool HDLC::unframe()
     do
     {
         framelgt++;
+        Serial.print(workBuf[framelgt]);
+        Serial.print(",");
         if (workBuf[framelgt] == 0x7E)
         {
             framelgt++;
             flgfound = true;
             break;
         }
+
     } while (/*(workBuf[framelgt] != 0x7E) || */ (framelgt <= workBufSize));
     // If no flag was found return as if crc was invalid
     if (!flgfound)
@@ -97,16 +100,8 @@ bool HDLC::unframe()
         }
     }
     // CRC16 comparison
-    /*Serial.println(framelgt);
-    Serial.println(newlen);*/
     delayMicroseconds(500);
     uint16_t crc = crc16_ccitt(workBuf + 1, newlen - 4);
-    Serial.println();
-    for(int x = 0; x < newlen; x++) {
-        Serial.print(workBuf[x]);
-        Serial.print(",");
-    }
-    Serial.println();
     if ((workBuf[newlen - 2] == (crc >> 8)) && (workBuf[newlen - 3] == (crc & 0x00FF)))
     {
         validcrc = true;
@@ -117,19 +112,16 @@ bool HDLC::unframe()
         Serial.println(":(");
         return false;
     }
-    //Serial.println("pera");
 
     // Address
     data->ADD = workBuf[1];
     // Control
     data->CTR = workBuf[2];
     // Data
-    //Serial.println("mela");
     for (m = 3; m < newlen - 6; m++)
     {
         data->DAT[m - 3] = workBuf[m];
     }
-    //Serial.println("banana");
     // Data length
     data->DATlen = newlen - 6;
 #ifdef STDIODBG
@@ -171,12 +163,6 @@ int HDLC::getWorkBufferSize()
 
 uint16_t HDLC::crc16_ccitt(uint8_t *arr, uint32_t arrlgt)
 {
-    /*Serial.println("crcdata");
-    for (int m = 0; m < arrlgt; m++) {
-        Serial.print(arr[m]);
-        Serial.print(",");
-    }
-    Serial.println();*/
     uint16_t temp;
     bool odd;
     uint16_t crc;

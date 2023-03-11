@@ -38,6 +38,8 @@ unsigned long ms0 = 0;
 unsigned long ms1 = 0;
 // Activity led
 unsigned long ms2 = 0;
+// Serial wait time
+unsigned long msS = 0;
 
 // Serial buffer
 uint8_t sbuf[64];
@@ -60,7 +62,6 @@ void setup()
   rtc.begin(&Wire);
   // Print welcome screen
   oledPrint(0);
-
 
   pinMode(PIN_LED_BLUE, OUTPUT);
   pinMode(PIN_LED_RED, OUTPUT);
@@ -175,31 +176,30 @@ void handleSerialReading(HardwareSerial *serial)
   // We have an HDLC frame
   if (serial->read() == '~')
   {
-    Serial.print("A");
-    
-    for(int i = 0; i < 64; i++){
+
+    for (int i = 0; i < 64; i++)
+    {
       sbuf[i] = 0;
     }
 
-    Serial.print("B");
     // Length of the HDLC frame
-    uint8_t framelgt = 1;    
-
-    Serial.print("C");
+    uint8_t frameidx = 1;
     // The flag was removed by the first call to Serial.read()
     sbuf[0] = '~';
     // Read frame until flag or until max serial buffer size is reached or until data is no longer available
     do
     {
-      sbuf[framelgt] = serial->read();
-      framelgt++;
-    } while ((sbuf[framelgt - 1] != '~') && (framelgt < 64) && (serial->available()));
+      if (serial->available())
+      {
+        msS = millis();
+        sbuf[frameidx] = serial->read();
+        frameidx++;
+      }
+    } while ((sbuf[frameidx - 1] != '~') && (frameidx < 64) && (millis() - msS < 100));
     serial->flush();
-    Serial.print("D");
     // CRC16 is valid
     if (hdlc.unframe())
-    {    
-      Serial.print("E");
+    {
 
       // Read incoming frame
       HDLC::HDLCData *hdlcd = hdlc.getData();
@@ -213,7 +213,7 @@ void handleSerialReading(HardwareSerial *serial)
       seqn.DATlen = 1;
       hdlc.setData(&seqn);
       int len = hdlc.frame();
-      //handleSerialWriting(serial, sbuf, len);
+      // handleSerialWriting(serial, sbuf, len);
 
       // Do something with the data
       handleReceiveHDLC(hdlcd);
@@ -222,7 +222,6 @@ void handleSerialReading(HardwareSerial *serial)
     // for the other device to send the message again
     else
     {
-      Serial.print("crc no buono");
       // serial->println("invalid crc");
       serial->flush();
     }
