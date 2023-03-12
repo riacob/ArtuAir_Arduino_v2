@@ -5,8 +5,13 @@
 
 HDLC::HDLC(uint8_t *workBuffer, int workBufferSize)
 {
+    // Get the pointer and the size of the global serial buffer
     workBuf = workBuffer;
     workBufSize = workBufferSize;
+    /**
+     * @brief Internal HDLC data container
+     * 
+     */
     data = new HDLCData;
 }
 
@@ -14,6 +19,11 @@ HDLC::~HDLC(){
     delete data;
 }
 
+/**
+ * @brief Prepares the serial buffer framing the data 
+ * 
+ * @return Length of the serial buffer 
+ */
 int HDLC::frame()
 {
     int i = 0, j = 0, k = 0, m = 0;
@@ -24,14 +34,23 @@ int HDLC::frame()
     // Control
     workBuf[2] = data->CTR;
     // Data
+    // The counter starts at 3 because the first 3 idxs alredy contain data
     for (i = 3; i < data->DATlen + 3; i++)
     {
         workBuf[i] = data->DAT[i - 3];
     }
+
     // CRC16
+    // Calculate the CRC16
+    /**
+     * @brief The calculated CRC16
+     */
     uint16_t crc = crc16_ccitt(workBuf + 1, 2 + data->DATlen);
+    // CRC16 MSB
     workBuf[i] = crc >> 8;
+    // CRC16 LSB
     workBuf[i + 1] = crc & 0x00FF;
+
     // Stuffing
     for (j = 1; j < i + 2; j++)
     {
@@ -56,10 +75,16 @@ int HDLC::frame()
     std::cout << std::endl
               << k << std::endl;
 #endif
-    // Return lenght of frame
+    // Return length of frame
     return i + k + 3;
 }
 
+/**
+ * @brief Unframes the serial buffer and check if the CRC16 is valid
+ * 
+ * @return true The CRC16 is valid
+ * @return false No flag found or invalid CRC16
+ */
 bool HDLC::unframe()
 {
     int i = 0, j = 0, m = 0;
@@ -72,6 +97,7 @@ bool HDLC::unframe()
         framelgt++;
         Serial.print(workBuf[framelgt]);
         Serial.print(",");
+        // If a flag is found it gets out of the loop as there is no more data
         if (workBuf[framelgt] == 0x7E)
         {
             framelgt++;
@@ -87,9 +113,15 @@ bool HDLC::unframe()
     }
 
     // Unstuffing
+
+    /**
+     * @brief The length of the unstuffed buffer
+     */
     int newlen = framelgt;
+
     for (i = 1; i < framelgt - 1; i++)
     {
+
         if (workBuf[i] == 0x7D)
         {
             for (j = i; j < framelgt; j++)
@@ -101,7 +133,6 @@ bool HDLC::unframe()
         }
     }
 
-    // CRC16 comparison
     delayMicroseconds(500);
     
     // Address
@@ -113,9 +144,12 @@ bool HDLC::unframe()
     {
         data->DAT[m - 3] = workBuf[m];
     }
-    // Data length
+
+    // Data length (Size of the serial buffer - 6 (2 Flag + Add + Ctr + 2 CRC))
     data->DATlen = newlen - 6;
     uint16_t crc = crc16_ccitt(workBuf + 1, newlen - 4);
+
+    // CRC16 comparison
     if ((workBuf[newlen - 2] == (crc >> 8)) && (workBuf[newlen - 3] == (crc & 0x00FF)))
     {
         validcrc = true;
@@ -144,15 +178,26 @@ bool HDLC::unframe()
     return validcrc;
 }
 
+/**
+ * @brief Changes the pointer to the pointer of the 
+ * 
+ * @param hdlcdata 
+ */
 void HDLC::setData(HDLCData *hdlcdata)
 {
     data = hdlcdata;
 }
 
+/**
+ * @brief Returns a pointer to the internal HDLCData struct
+ * S
+ * @return HDLC::HDLCData* 
+ */
 HDLC::HDLCData *HDLC::getData()
 {
     return data;
 }
+
 
 uint8_t *HDLC::getWorkBuffer()
 {
@@ -164,6 +209,13 @@ int HDLC::getWorkBufferSize()
     return workBufSize;
 }
 
+/**
+ * @brief Calculate the CRC16 of a given data array
+ * 
+ * @param arr The array containing the data from which the CRC16 will be calculated
+ * @param arrlgt The length of the array
+ * @return uint16_t The CRC16
+ */
 uint16_t HDLC::crc16_ccitt(uint8_t *arr, uint32_t arrlgt)
 {
     uint16_t temp;

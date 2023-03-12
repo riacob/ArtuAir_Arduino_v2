@@ -17,8 +17,17 @@ public:
     } HDLCData;
 
 private:
+    /**
+     * @brief Pointer to the global serial buffer 
+     */
     uint8_t *workBuf;
+    /**
+     * @brief Size of the global serial buffer 
+     */
     int workBufSize;
+    /**
+     * @brief Pointer to a HDLCData struct, depending from the use it contains the received data of the data that will be sent
+     */
     HDLCData *data;
 
 public:

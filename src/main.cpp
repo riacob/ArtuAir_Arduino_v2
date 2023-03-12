@@ -204,12 +204,14 @@ void handleSerialReading(HardwareSerial *serial)
       // Read incoming frame
       HDLC::HDLCData *hdlcd = hdlc.getData();
 
-      // Transmit frame containing sequence number back to the sender
-      HDLC::HDLCData seqn;
+      
 
       // Do something with the data
       handleReceiveHDLC(hdlc.getData());
-
+      
+      // After receiving and executing the given order
+      // Transmit frame containing sequence number back to the sender
+      HDLC::HDLCData seqn;
       seqn.ADD = 0x00;
       seqn.CTR = 0x00;
       seqn.DAT[0] = hdlcd->DAT[0];
@@ -222,7 +224,6 @@ void handleSerialReading(HardwareSerial *serial)
     // for the other device to send the message again
     else
     {
-      // serial->println("invalid crc");
       serial->flush();
     }
   }
@@ -265,7 +266,7 @@ void handleReceiveHDLC(HDLC::HDLCData *data)
 
   switch (cmd)
   {
-  case CMD_RECV_DATE:
+  case CMD_RECV_DATE_AND_TIME:
   {
     oled.clearDisplay();
     oled.setTextColor(WHITE);
@@ -274,14 +275,12 @@ void handleReceiveHDLC(HDLC::HDLCData *data)
     //oled.print(data->DATlen);
     oled.display();
     delay(5000);
+    // Reassemble the 2 uint8_t containing the year info in one uint16_t
     int year = (data->DAT[1] << 8) | (data->DAT[2]);
-    Serial.println(year);
+    
+    // Create a new DateTime obj with the arrived data and sets them in the RTC
     DateTime currentTime(year, data->DAT[3], data->DAT[4], data->DAT[5], data->DAT[6], data->DAT[7]);
     rtc.adjust(currentTime);
-    break;
-  }
-  case CMD_RECV_TIME:
-  {
     break;
   }
   case CMD_RECV_ACT_DOW:

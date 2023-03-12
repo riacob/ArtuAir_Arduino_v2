@@ -54,10 +54,8 @@
     CMD_SEND_DATE = 4,
     // Send RTC time
     CMD_SEND_TIME = 5,
-    // Receive RTC date
-    CMD_RECV_DATE = 6,
-    // Receive RTC time
-    CMD_RECV_TIME = 7,
+    // Receive date and time and sets them in the RTC
+    CMD_RECV_DATE_AND_TIME = 6,
     // Receive active days of week
     CMD_RECV_ACT_DOW = 8,
     // Receive active time slot
